@@ -1,19 +1,23 @@
 # main.py
 import pandas as pd
 import os
+import ta
 from chart_volume import plot_close_and_volume
 from datetime import time
+#from quant_stat.find_tops_and_bottoms import find_tops
+#from quant_stat.find_tops_and_bottoms import find_bottoms
+from quant_stat.find_tops_and_bottoms import extremes
 
 
 symbol = 'ES'
-timeframe = '1D'
+timeframe = 'tick_data'
 
 # ====================================================
 # 📥 CARGA DE DATOS
 # ====================================================
 directorio = '../DATA'
 #nombre_fichero = 'ES_25_07_2025_30s_data.csv'
-nombre_fichero ='export.csv'
+nombre_fichero ='ES_near_tick_data_27_jul_2025.csv'
 ruta = os.path.join(directorio, nombre_fichero)
 
 print("\n================================= 🔍 df  ===============================")
@@ -25,10 +29,10 @@ df['time'] = df['datetime'].dt.time
 
 df = df.set_index('datetime')
 
-# Mostrar resultado
-print(df.head())
 
-df = df.resample('5s').agg({
+
+# Agrupar la data para tener menos filas
+df = df.resample('1s').agg({
     'open': 'first',
     'high': 'max',
     'low': 'min',
@@ -36,27 +40,51 @@ df = df.resample('5s').agg({
     'volume': 'sum'
 }).dropna()
 
+
+
+# ====================================================
+# 📊 CÁLCULO DEL ATR DINÁMICO
+# ====================================================
+n= 14
+df['atr'] = ta.volatility.AverageTrueRange(
+    high=df['high'], low=df['low'], close=df['close'], window=n
+).average_true_range()
+
+df['atr_trigger_high'] = df['high']-df['atr']
+df['atr_trigger_low'] = df['low']+df['atr']
+
+# Mostrar resultado
+print(df.tail())
+
+# ====================================================
+# 🔎 BUSCA TOPS AND BOTTOMS
+# ====================================================
+# asegúrate de que df['atr_trigger'] esté calculado previamente
+extremos = extremes(df)
+extremos_df = pd.DataFrame(extremos, columns=['type', 'index', 'value'])
+
+print (extremos_df)
+
+# Separar para graficar si lo necesitas
+tops = [(i, val) for tipo, i, val in extremos if tipo == 'top']
+bottoms = [(i, val) for tipo, i, val in extremos if tipo == 'bottom']
+
+
+
+
 # ====================================================
 # 📊 GENERACIÓN DEL GRÁFICO
 # ====================================================
 
-# 1. Asegura que el índice se convierta en columna (si es datetime index)
+# df = df[df['date'].dt.time >= time(8, 0, 0)]              # subsegmento
+
 df = df.reset_index()
-
-# 2. Asegura que 'datetime' esté en formato datetime completo
 df['date'] = pd.to_datetime(df['datetime'])  # si tu columna se llama así
-
-# 3. Extrae la hora como string (solo para casos que uses time_str)
 df['time_str'] = df['date'].dt.strftime('%H:%M:%S')
-
-# 4. Ordena por fecha
-df = df.sort_values('date')
-df = df[df['date'].dt.time >= time(8, 0, 0)]
-
-# 5. Extrae la fecha única y formatea para usar en el título
-unique_date = df['date'].dt.date.unique()[0]
+unique_date = df['date'].dt.date.unique()[0] 
 fecha = unique_date.strftime('%Y-%m-%d')
 
-# 6. Llamada al gráfico
-plot_close_and_volume(symbol, timeframe, df, fecha)
+plot_close_and_volume(symbol, timeframe, df, fecha, tops=tops, bottoms=bottoms, extremos_df=extremos_df)
+
+
 
