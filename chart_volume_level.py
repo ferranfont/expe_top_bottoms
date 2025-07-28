@@ -6,7 +6,7 @@ from plotly.subplots import make_subplots
 
 def plot_close_and_volume_levels(symbol, timeframe, df, date_str,
                           tops=None, bottoms=None,
-                          extremos_df=None, extremos_df_lvl1=None, guardian_lines=None):
+                          extremos_df=None, extremos_df_lvl1=None, guardian_lines=None, guardian_summary=None,tracking_record_buy_fake_bo=None):
     
     html_path = f'charts/close_vol_chart_{symbol}_{timeframe}_{date_str}_levels.html'
     os.makedirs(os.path.dirname(html_path), exist_ok=True)
@@ -102,10 +102,49 @@ def plot_close_and_volume_levels(symbol, timeframe, df, date_str,
                 y=line['y'],
                 text=line['tag'],
                 showarrow=False,
-                yshift=10,
-                font=dict(size=10, color="red"),
+                yshift=8,
+                font=dict(size=8, color="red"),
                 opacity=0.7
             )
+
+    # === Dibujar triángulos verdes en los puntos de entrada de guardian ===
+    if guardian_summary is not None:
+        entry_x = df.loc[guardian_summary['min_index'], 'date'].values
+        entry_y = guardian_summary['entry_price'].values
+        entry_tags = guardian_summary['tag'].values  # etiquetas tipo cluster_XX
+
+        fig.add_trace(go.Scatter(
+            x=entry_x,
+            y=entry_y,
+            text=entry_tags,  # incluir tags
+            mode='markers',
+            marker=dict(
+                color='green',
+                size=7,
+                symbol='triangle-up',
+                line=dict(width=1, color='green')
+            ),
+            name='Limit Order',
+            hovertemplate='Limit Order %{text}<br>%{x}<br>%{y:.2f}<extra></extra>'
+        ), row=1, col=1)
+
+
+    # === MARCAR ENTRADAS FAKE BO COMO TRIÁNGULOS VERDES ===
+    if tracking_record_buy_fake_bo is not None and not tracking_record_buy_fake_bo.empty:
+        fig.add_trace(go.Scatter(
+            x=tracking_record_buy_fake_bo['entry_time'],
+            y=tracking_record_buy_fake_bo['entry_price'],
+            text=tracking_record_buy_fake_bo['tag'],  # Asegúrate de tener esta columna
+            mode='markers',
+            marker=dict(
+                symbol='triangle-up',
+                size=14,
+                color='green',
+                line=dict(width=1, color='darkgreen')
+            ),
+            name='Entradas Guardian',
+            hovertemplate='Order Filled: Entry %{text}<br>%{x|%H:%M:%S}<br>%{y:.2f}<extra></extra>'
+        ), row=1, col=1)
 
 
     # Layout general

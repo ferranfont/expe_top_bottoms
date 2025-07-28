@@ -10,6 +10,8 @@ from datetime import time
 from quant_stat.find_tops_and_bottoms import extremes
 from quant_stat.find_tops_and_bottoms_level_1 import extremes_level_1
 from quant_stat.find_guardian_bottoms import group_consecutive_bottoms
+from strat_OM.strat_OM_buy_fake_BO import strat_guardian_clusters_OM
+from strat_OM.strat_OM_buy_fake_BO import strat_guardian_clusters_summary 
 
 symbol = 'ES'
 timeframe = 'tick_data'
@@ -73,25 +75,21 @@ extremos_df = pd.DataFrame(extremos, columns=['type', 'index', 'value'])
 # Separar para graficar si lo necesitas
 tops = [(i, val) for tipo, i, val in extremos if tipo == 'top_0']
 bottoms = [(i, val) for tipo, i, val in extremos if tipo == 'bottom_0']
-print ('bottoms', bottoms)
 
 # ====================================================
 # 🔎 BUSCA TOPS AND BOTTOMS NIVEL 1
 # ====================================================
 
-
 extremos_lvl1 = extremes_level_1(df)
 extremos_df_lvl1 = pd.DataFrame(extremos_lvl1, columns=['type', 'index', 'value'])
 tops_1 = [(i, val) for tipo, i, val in extremos_lvl1 if tipo == 'top_1']
 bottoms_1 = [(i, val) for tipo, i, val in extremos_lvl1 if tipo == 'bottom_1']
-
-print (extremos_df_lvl1)
-
+print ('Bottoms_nivel 1', '\n',extremos_df_lvl1)
 
 # ====================================================
 # 🔎 BUSQUEDA DE  SUELOS CONSECUTIVOS
 # ====================================================
-guardian_df = group_consecutive_bottoms(bottoms, guardian=4)
+guardian_df = group_consecutive_bottoms(bottoms, guardian=2, max_gap=4)
 print(guardian_df)
 # Resetear antes de usar índices numéricos
 df = df.reset_index()
@@ -118,7 +116,20 @@ for cluster_id in guardian_df['cluster_id'].unique():
         'tag': tag
     })
 
+# ====================================================
+# 📊 STRATEGY
+# ====================================================
 
+
+guardian_summary = strat_guardian_clusters_summary(guardian_df, shift_entry=0.75)
+# Ejecuta estrategia completa
+tracking_record_buy_fake_bo = strat_guardian_clusters_OM(
+    df=df,
+    guardian_summary_df=guardian_summary,
+    keep_order=300,
+    target_pts=10,
+    stop_pts=5
+)
 
 # ====================================================
 # 📊 GENERACIÓN DEL GRÁFICO
@@ -135,7 +146,7 @@ fecha = unique_date.strftime('%Y-%m-%d')
 plot_close_and_volume(symbol, timeframe, df, fecha, tops=tops, bottoms=bottoms, extremos_df=extremos_df, extremos_df_lvl1=extremos_df_lvl1)
 
 # ====================================================
-# 📊 GENERACIÓN DEL GRÁFICO - SOLO ESTRUCTURA
+# 📊 GENERACIÓN DEL GRÁFICO LEVELS - SOLO ESTRUCTURA
 # ====================================================
 
 # Llamada al gráfico completo con niveles 0 y 1
@@ -148,7 +159,9 @@ plot_close_and_volume_levels(
     bottoms=bottoms,
     extremos_df=extremos_df,
     extremos_df_lvl1=extremos_df_lvl1,
-    guardian_lines=guardian_lines 
+    guardian_lines=guardian_lines,
+    guardian_summary=guardian_summary,
+    tracking_record_buy_fake_bo=tracking_record_buy_fake_bo
 )
 
 
