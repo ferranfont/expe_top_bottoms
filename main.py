@@ -3,11 +3,13 @@ import pandas as pd
 import os
 import ta
 from chart_volume import plot_close_and_volume
+from chart_volume_level import plot_close_and_volume_levels
 from datetime import time
 #from quant_stat.find_tops_and_bottoms import find_tops
 #from quant_stat.find_tops_and_bottoms import find_bottoms
 from quant_stat.find_tops_and_bottoms import extremes
-
+from quant_stat.find_tops_and_bottoms_level_1 import extremes_level_1
+from quant_stat.find_guardian_bottoms import group_consecutive_bottoms
 
 symbol = 'ES'
 timeframe = 'tick_data'
@@ -50,25 +52,71 @@ df['atr'] = ta.volatility.AverageTrueRange(
     high=df['high'], low=df['low'], close=df['close'], window=n
 ).average_true_range()
 
+# Triggers para nivel 0 (más amplios)
 df['atr_trigger_high'] = df['high']-df['atr']
 df['atr_trigger_low'] = df['low']+df['atr']
+
+
+# Triggers para nivel 1 (más amplios)
+df['atr_trigger_high_x2'] = df['high'] - 3 * df['atr']
+df['atr_trigger_low_x2'] = df['low'] + 3 * df['atr']
 
 # Mostrar resultado
 print(df.tail())
 
 # ====================================================
-# 🔎 BUSCA TOPS AND BOTTOMS
+# 🔎 BUSCA TOPS AND BOTTOMS NIVEL 0
 # ====================================================
 # asegúrate de que df['atr_trigger'] esté calculado previamente
 extremos = extremes(df)
 extremos_df = pd.DataFrame(extremos, columns=['type', 'index', 'value'])
-
-print (extremos_df)
-
 # Separar para graficar si lo necesitas
-tops = [(i, val) for tipo, i, val in extremos if tipo == 'top']
-bottoms = [(i, val) for tipo, i, val in extremos if tipo == 'bottom']
+tops = [(i, val) for tipo, i, val in extremos if tipo == 'top_0']
+bottoms = [(i, val) for tipo, i, val in extremos if tipo == 'bottom_0']
+print ('bottoms', bottoms)
 
+# ====================================================
+# 🔎 BUSCA TOPS AND BOTTOMS NIVEL 1
+# ====================================================
+
+
+extremos_lvl1 = extremes_level_1(df)
+extremos_df_lvl1 = pd.DataFrame(extremos_lvl1, columns=['type', 'index', 'value'])
+tops_1 = [(i, val) for tipo, i, val in extremos_lvl1 if tipo == 'top_1']
+bottoms_1 = [(i, val) for tipo, i, val in extremos_lvl1 if tipo == 'bottom_1']
+
+print (extremos_df_lvl1)
+
+
+# ====================================================
+# 🔎 BUSQUEDA DE  SUELOS CONSECUTIVOS
+# ====================================================
+guardian_df = group_consecutive_bottoms(bottoms, guardian=4)
+print(guardian_df)
+# Resetear antes de usar índices numéricos
+df = df.reset_index()
+df['date'] = pd.to_datetime(df['datetime'])  # asegúrate de que existe esta columna
+
+# === Generar líneas horizontales para guardian ===
+guardian_lines = []
+
+for cluster_id in guardian_df['cluster_id'].unique():
+    group = guardian_df[guardian_df['cluster_id'] == cluster_id]
+    start_idx = group['index'].min()
+    end_idx = group['index'].max()
+    y_value = group['min_value'].iloc[0]
+    tag = group['tag'].iloc[0]
+
+    # CORREGIDO: usar iloc directamente porque df está ordenado y con índice numérico
+    start_time = df.iloc[start_idx]['date']
+    end_time = df.iloc[end_idx]['date']
+
+    guardian_lines.append({
+        'x0': start_time,
+        'x1': end_time,
+        'y': y_value,
+        'tag': tag
+    })
 
 
 
@@ -84,7 +132,23 @@ df['time_str'] = df['date'].dt.strftime('%H:%M:%S')
 unique_date = df['date'].dt.date.unique()[0] 
 fecha = unique_date.strftime('%Y-%m-%d')
 
-plot_close_and_volume(symbol, timeframe, df, fecha, tops=tops, bottoms=bottoms, extremos_df=extremos_df)
+plot_close_and_volume(symbol, timeframe, df, fecha, tops=tops, bottoms=bottoms, extremos_df=extremos_df, extremos_df_lvl1=extremos_df_lvl1)
 
+# ====================================================
+# 📊 GENERACIÓN DEL GRÁFICO - SOLO ESTRUCTURA
+# ====================================================
+
+# Llamada al gráfico completo con niveles 0 y 1
+plot_close_and_volume_levels(
+    symbol=symbol,
+    timeframe=timeframe,
+    df=df,
+    date_str=fecha,
+    tops=tops,
+    bottoms=bottoms,
+    extremos_df=extremos_df,
+    extremos_df_lvl1=extremos_df_lvl1,
+    guardian_lines=guardian_lines 
+)
 
 

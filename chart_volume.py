@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 
-def plot_close_and_volume(symbol, timeframe, df, date_str, tops=None, bottoms=None,extremos_df=None):
+def plot_close_and_volume(symbol, timeframe, df, date_str, tops=None, bottoms=None,extremos_df=None, extremos_df_lvl1=None):
 
  
     html_path = f'charts/close_vol_chart_{symbol}_{timeframe}_{date_str}.html'
@@ -25,10 +25,10 @@ def plot_close_and_volume(symbol, timeframe, df, date_str, tops=None, bottoms=No
         high=df['high'],
         low=df['low'],
         close=df['close'],
-        increasing_line_color='rgba(0, 255, 0, 0.5)',  
-        decreasing_line_color='rgba(255, 0, 0, 0.5)',  
-        increasing_fillcolor='rgba(0, 255, 0, 0.01)',
-        decreasing_fillcolor='rgba(255, 0, 0, 0.01)',
+        increasing_line_color='rgba(34, 200, 34, 0.13)',  
+        decreasing_line_color='rgba(255, 0, 0, 0.13)',  
+        increasing_fillcolor='rgba(0, 255, 0, 0.13)',
+        decreasing_fillcolor='rgba(255, 0, 0, 0.13)',
         name='Velas'
     ), row=1, col=1)
 
@@ -42,21 +42,28 @@ def plot_close_and_volume(symbol, timeframe, df, date_str, tops=None, bottoms=No
             x=x_line,
             y=y_line,
             mode='lines',
-            line=dict(color='blue', width=2, dash='solid'),  # puedes personalizar color/estilo
+            line=dict(color='blue', width=1, dash='solid'),  # puedes personalizar color/estilo
+            name='Línea de extremos',
+            hovertemplate='%{x}<br>%{y:.2f}<extra></extra>',
+        ), row=1, col=1)
+
+
+
+    # === Dibujar línea que une los extremos (tops y bottoms alternados) ===
+    if extremos_df is not None:
+        x_line = df.iloc[extremos_df_lvl1['index']].date
+        y_line = extremos_df_lvl1['value']
+
+        fig.add_trace(go.Scatter(
+            x=x_line,
+            y=y_line,
+            mode='lines',
+            line=dict(color='black', width=2, dash='solid'),  # puedes personalizar color/estilo
             name='Línea de extremos',
             hovertemplate='%{x}<br>%{y:.2f}<extra></extra>',
         ), row=1, col=1)
 
     '''
-
-    # Traza de precio
-    fig.add_trace(go.Scatter(
-        x=df['date'],
-        y=df['low'],
-        mode='lines',
-        line=dict(color='green', width=1),
-        name='Close'
-    ), row=1, col=1)
 
     # Traza de precio
     fig.add_trace(go.Scatter(
@@ -67,18 +74,7 @@ def plot_close_and_volume(symbol, timeframe, df, date_str, tops=None, bottoms=No
         name='Close'
     ), row=1, col=1)
 
-
-
-    # Traza de precio
-    fig.add_trace(go.Scatter(
-        x=df['date'],
-        y=df['high'],
-        mode='lines',
-        line=dict(color='turquoise', width=1),
-        name='Close'
-    ), row=1, col=1)
-    
-
+  
     # Traza de low - ATR fijo
     fig.add_trace(go.Scatter(
         x=df['date'],
@@ -133,7 +129,7 @@ def plot_close_and_volume(symbol, timeframe, df, date_str, tops=None, bottoms=No
             x=top_x,
             y=top_y,
             mode='markers',
-            marker=dict(color='rgba(0, 255, 0, 0.7)', size=8, symbol='circle'),
+            marker=dict(color='blue', size=8, symbol='circle'),
             name='Tops confirmados',
             hovertemplate='Top<br>%{x}<br>%{y:.2f}<extra></extra>'
         ), row=1, col=1)
@@ -147,7 +143,7 @@ def plot_close_and_volume(symbol, timeframe, df, date_str, tops=None, bottoms=No
             x=bottom_x,
             y=bottom_y,
             mode='markers',
-            marker=dict(color='rgba(255, 0, 0, 0.7)', size=8, symbol='circle'),
+            marker=dict(color='blue', size=8, symbol='circle'),
             name='Bottoms confirmados',
             hovertemplate='Bottom<br>%{x}<br>%{y:.2f}<extra></extra>'
         ), row=1, col=1)

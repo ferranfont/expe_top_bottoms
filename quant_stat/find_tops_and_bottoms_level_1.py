@@ -1,12 +1,9 @@
 import pandas as pd
 
-def extremes(df):
+def extremes_level_1(df):
     """
-    Detecta extremos alternos (top → bottom → top → ...) en el DataFrame.
-    Usa columnas: 'high', 'low', 'atr_trigger_high', 'atr_trigger_low'.
-    
-    Devuelve: lista de tuplas (tipo, índice, valor)
-    tipo ∈ {'top', 'bottom'}
+    Detecta extremos alternos (top → bottom → top → ...) usando umbrales más exigentes.
+    Usa: 'atr_trigger_high_x2' y 'atr_trigger_low_x2'
     """
 
     extremos = []
@@ -23,7 +20,7 @@ def extremes(df):
         current_low = df['low'].iloc[i]
 
         if modo == 'top':
-            trigger = df['atr_trigger_high'].iloc[pending_max_i]
+            trigger = df['atr_trigger_high_x2'].iloc[pending_max_i]
             if pd.isna(trigger):
                 continue
 
@@ -31,13 +28,13 @@ def extremes(df):
                 pending_max = current_high
                 pending_max_i = i
             elif current_low < trigger:
-                extremos.append(('top_0', pending_max_i, pending_max))
+                extremos.append(('top_1', pending_max_i, pending_max))
                 modo = 'bottom'
                 pending_min = current_low
                 pending_min_i = i
 
         elif modo == 'bottom':
-            trigger = df['atr_trigger_low'].iloc[pending_min_i]
+            trigger = df['atr_trigger_low_x2'].iloc[pending_min_i]
             if pd.isna(trigger):
                 continue
 
@@ -45,7 +42,7 @@ def extremes(df):
                 pending_min = current_low
                 pending_min_i = i
             elif current_high > trigger:
-                extremos.append(('bottom_0', pending_min_i, pending_min))
+                extremos.append(('bottom_1', pending_min_i, pending_min))
                 modo = 'top'
                 pending_max = current_high
                 pending_max_i = i
